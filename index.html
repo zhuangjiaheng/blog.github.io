@@ -152,6 +152,153 @@
           <div id="js-content" class="content-ll">
             
   
+    <article id="post-Pytorch 交叉熵损失函数" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="Pytorch-交叉熵损失函数"><a href="#Pytorch-交叉熵损失函数" class="headerlink" title="Pytorch 交叉熵损失函数"></a>Pytorch 交叉熵损失函数</h2><h3 id="1-Pytoch的交叉熵"><a href="#1-Pytoch的交叉熵" class="headerlink" title="1 Pytoch的交叉熵"></a>1 Pytoch的交叉熵</h3><p>用nn.CrossEntropy和nn.LogSoftmax+nn.NLLLoss</p>
+<p><img src="https://private.codecogs.com/gif.latex?l(x,y)=-%5Csum%20y*logx=%5Cleft%5C%7B%5Cbegin%7Bmatrix%7D%20-logx%20,%20y=1&%20%5C%5C%200,y=0&%20%5Cend%7Bmatrix%7D%5Cright." alt="img"></p>
+<p>其中y是label，x是prediction的结果，所以其实交叉熵损失就是负的target对应位置的输出结果x再取-log。这个计算过程刚好就是先LogSoftmax()再NLLLoss()。</p>
+<h3 id="2-踩坑记录：CrossEntropyLoss"><a href="#2-踩坑记录：CrossEntropyLoss" class="headerlink" title="2 踩坑记录：CrossEntropyLoss"></a>2 踩坑记录：CrossEntropyLoss</h3><h4 id="问题1：从MSE转换成交叉熵出错"><a href="#问题1：从MSE转换成交叉熵出错" class="headerlink" title="问题1：从MSE转换成交叉熵出错"></a>问题1：从MSE转换成交叉熵出错</h4><p>第一次用的损失函数是均方误差<code>MSELoss</code>程序正常运行没有遇到问题，但当换成<code>CrossEntropyLoss</code>后会报如下错误：</p>
+<blockquote>
+<p>RuntimeError: Expected object of scalar type Long but got scalar type Float for argument #2 ‘target’ in call to _thnn_nll_loss_forward</p>
+</blockquote>
+<p>问题：target的格式不对</p>
+<p>解决方法：通过<code>y_label.long()</code>的方式转换格式</p>
+<h4 id="问题2-：两个参数的格式"><a href="#问题2-：两个参数的格式" class="headerlink" title="问题2 ：两个参数的格式"></a>问题2 ：两个参数的格式</h4><p>一个标准的例子</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> torch</span><br><span class="line"><span class="keyword">import</span> torch.nn <span class="keyword">as</span> nn</span><br><span class="line"></span><br><span class="line">y_pred = torch.Tensor([[<span class="number">0.1389</span>, <span class="number">0.1298</span>],[<span class="number">0.1366</span>, <span class="number">0.1266</span>],[<span class="number">0.1334</span>, <span class="number">0.1285</span>]])</span><br><span class="line">y_label = torch.Tensor([<span class="number">1</span>,<span class="number">1</span>,<span class="number">0</span>]).long()</span><br><span class="line">criterion = nn.CrossEntropyLoss()</span><br><span class="line">loss = criterion(y_pred,ylabel)</span><br></pre></td></tr></table></figure>
+
+<p>说明：<code>y_pred</code>需要是二维的矩阵，<code>y_label</code>需要是标签值，不能是one-hot编码</p>
+<p>​            二者的格式为：torch.FloatTorch，**<code>torch.LongTorch</code>**</p>
+<ul>
+<li>如果第一个参数是索引出来的一维（如下第一行）,会出现的错</li>
+</ul>
+<blockquote>
+<p>IndexError: Dimension out of range (expected to be in range of [-1, 0], but got 1)</p>
+</blockquote>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">y_pred = torch.Tensor([<span class="number">0.1389</span>, <span class="number">0.1298</span>])</span><br><span class="line">y_pred.unsqueeze(<span class="number">0</span>)   <span class="comment"># tensor([[0.1389, 0.1298]])  # correct form</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>如果第二个参数是独热编码形式，会出现的错</li>
+</ul>
+<blockquote>
+<p>RuntimeError: multi-target not supported at </p>
+</blockquote>
+<p>此外，标签必须是0-n-1而不能是1-n的，例如二分类的标签只能为01；而这点在NLLLoss中也是一样的额</p>
+<p>问题清单：</p>
+<ul>
+<li>二分类问题中，标准交叉熵的两项不是一样的吗？</li>
+<li>pytorch的交叉熵只有一项，那我想要让损失函数更侧重某一方面应该如何处理？</li>
+<li>为什么这个分类问题要用MSE而不用交叉熵</li>
+</ul>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/04/11/Pytorch%20%E4%BA%A4%E5%8F%89%E7%86%B5%E6%8D%9F%E5%A4%B1%E5%87%BD%E6%95%B0/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
+    <article id="post-argparse模块" class="article article-type-post  article-index" itemscope itemprop="blogPost">
+  <div class="article-inner">
+    
+    <div class="article-entry" itemprop="articleBody">
+      
+        <h2 id="argparse模块"><a href="#argparse模块" class="headerlink" title="argparse模块"></a>argparse模块</h2><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> argparse   <span class="comment"># 导入库</span></span><br><span class="line"></span><br><span class="line">parser = argparse.ArgumentParser(description=<span class="string">&#x27;Chinese Text Classification&#x27;</span>)  <span class="comment"># 获取所有参数</span></span><br><span class="line">parser.add_argument(<span class="string">&quot;-n1&quot;</span>, <span class="string">&quot;--number one&quot;</span>,<span class="built_in">help</span>=<span class="string">&quot;第一个参数&quot;</span>,<span class="built_in">type</span>=<span class="built_in">int</span>)  <span class="comment"># 添加参数1,-n1是对参数--number的简写</span></span><br><span class="line">parser.add_argument(<span class="string">&quot;-n2&quot;</span>, <span class="string">&quot;--number two&quot;</span>,<span class="built_in">help</span>=<span class="string">&quot;第二个参数&quot;</span>,<span class="built_in">type</span>=<span class="built_in">int</span>)  <span class="comment"># 添加参数2</span></span><br><span class="line">args = parser.parse_args()  <span class="comment"># 解析所有参数</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>demo1</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> argparse</span><br><span class="line"></span><br><span class="line">parser = argparse.ArgumentParser(description=<span class="string">&#x27;Chinese Text Classification&#x27;</span>)</span><br><span class="line"></span><br><span class="line">parser.add_argument(<span class="string">&quot;--n1&quot;</span>,<span class="built_in">help</span>=<span class="string">&quot;第一个参数&quot;</span>,<span class="built_in">type</span>=<span class="built_in">int</span>)</span><br><span class="line">parser.add_argument(<span class="string">&quot;--n2&quot;</span>,<span class="built_in">help</span>=<span class="string">&quot;第二个参数&quot;</span>,<span class="built_in">type</span>=<span class="built_in">int</span>)</span><br><span class="line"></span><br><span class="line">args = parser.parse_args()  <span class="comment">#解析所有参数</span></span><br><span class="line">print(<span class="string">&quot;第一个参数&quot;</span>,args.number1)</span><br><span class="line">print(<span class="string">&quot;第一个参数&quot;</span>,args.number2)</span><br><span class="line">print(<span class="string">&quot;所有参数&quot;</span>,args)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>(base) E:\科研小助手\pytorch\pytorch_tutorial\050_058：新闻数据集文本分类实战\text&gt;python test_argparse.py –n<br>umber1 3 –number2 5<br>第一个参数 3<br>第一个参数 5<br>所有参数 Namespace(number1=3, number2=5)</p>
+</blockquote>
+<ul>
+<li>demo2</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">parser = argparse.ArgumentParser(description=<span class="string">&#x27;Chinese Text Classification&#x27;</span>)</span><br><span class="line">parser.add_argument(<span class="string">&#x27;--model&#x27;</span>, <span class="built_in">type</span>=<span class="built_in">str</span>, required=<span class="literal">True</span>, <span class="built_in">help</span>=<span class="string">&#x27;choose a model: TextCNN, TextRNN, FastText, TextRCNN, TextRNN_Att, DPCNN, Transformer&#x27;</span>)</span><br><span class="line">parser.add_argument(<span class="string">&#x27;--embedding&#x27;</span>, default=<span class="string">&#x27;pre_trained&#x27;</span>, <span class="built_in">type</span>=<span class="built_in">str</span>, <span class="built_in">help</span>=<span class="string">&#x27;random or pre_trained&#x27;</span>)</span><br><span class="line">parser.add_argument(<span class="string">&#x27;--word&#x27;</span>, default=<span class="literal">False</span>, <span class="built_in">type</span>=<span class="built_in">bool</span>, <span class="built_in">help</span>=<span class="string">&#x27;True for word, False for char&#x27;</span>)</span><br><span class="line">args = parser.parse_args()</span><br><span class="line">print(<span class="string">&quot;所有参数&quot;</span>,args)</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>(base) E:\科研小助手\pytorch\pytorch_tutorial\050_058：新闻数据集文本分类实战\text&gt;python test_argparse.py –m<br>odel TextRNN –embedding pre_trained<br>所有参数 Namespace(embedding=’pre_trained’, model=’TextRNN’, word=False)</p>
+</blockquote>
+
+      
+
+      
+    </div>
+    <div class="article-info article-info-index">
+      
+      
+      
+
+      
+        <p class="article-more-link">
+          <a class="article-more-a" href="/2021/04/01/argparse%E6%A8%A1%E5%9D%97/">展开全文 >></a>
+        </p>
+      
+
+      
+      <div class="clearfix"></div>
+    </div>
+  </div>
+</article>
+
+<aside class="wrap-side-operation">
+    <div class="mod-side-operation">
+        
+        <div class="jump-container" id="js-jump-container" style="display:none;">
+            <a href="javascript:void(0)" class="mod-side-operation__jump-to-top">
+                <i class="icon-font icon-back"></i>
+            </a>
+            <div id="js-jump-plan-container" class="jump-plan-container" style="top: -11px;">
+                <i class="icon-font icon-plane jump-plane"></i>
+            </div>
+        </div>
+        
+        
+    </div>
+</aside>
+
+
+
+
+  
     <article id="post-FirstDjangoBlog1" class="article article-type-post  article-index" itemscope itemprop="blogPost">
   <div class="article-inner">
     
